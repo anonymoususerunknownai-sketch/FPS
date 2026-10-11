@@ -1,0 +1,54 @@
+name: Build Call of Blocky WebXDC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract source
+        run: |
+          test -f source.zip
+          unzip -q source.zip
+          test -f blockyard-webxdc-port/package-lock.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        working-directory: blockyard-webxdc-port
+        run: npm ci
+
+      - name: Build WebXDC
+        working-directory: blockyard-webxdc-port
+        run: npm run build:webxdc
+
+      - name: Check output
+        run: |
+          test -s blockyard-webxdc-port/Call_of_Blocky_Offline.xdc
+          unzip -t blockyard-webxdc-port/Call_of_Blocky_Offline.xdc
+          unzip -Z1 blockyard-webxdc-port/Call_of_Blocky_Offline.xdc | grep -q '\.wasm$'
+
+      - name: Save game file
+        uses: actions/upload-artifact@v4
+        with:
+          name: Call_of_Blocky_Delta_Chat
+          path: blockyard-webxdc-port/Call_of_Blocky_Offline.xdc
+          if-no-files-found: error
